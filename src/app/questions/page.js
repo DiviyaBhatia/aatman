@@ -265,6 +265,9 @@ export default function Questions() {
         }
         .qs-option.selected .qs-opt-text { color: #1a1425; font-weight: 400; }
 
+        .qs-input { width: 100%; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 300; color: #1a1425; background: #f7f4ff; border: 1px solid #ebe5f8; border-radius: 12px; padding: 14px 16px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; -webkit-appearance: none; }
+        .qs-input:focus { border-color: #7c5cdb; box-shadow: 0 0 0 3px rgba(92,63,207,0.09); }
+
         .qs-footer {
           position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
           padding: 14px 24px 28px;
@@ -334,39 +337,55 @@ export default function Questions() {
         {/* CONTENT — one goal at a time */}
         <div className="qs-inner">
           <div className="qs-goal-meta">
-            <span className="qs-domain-pill">
-              {DOMAIN_ICONS[currentGoal.domain] ?? null}
-              {currentGoal.domain}
-            </span>
-            <span className="qs-goal-title">{currentGoal.goal}</span>
+            {currentGoal.domain ? (
+              <span className="qs-domain-pill">
+                {DOMAIN_ICONS[currentGoal.domain] ?? null}
+                {currentGoal.domain}
+              </span>
+            ) : null}
+            <span className="qs-goal-title">{currentGoal.goal || "Your Goal"}</span>
           </div>
 
           <div className="qs-card">
             {currentGoal.questions.map((q, i) => {
               const selected = currentAnswers[i];
+              const isString = typeof q === 'string';
+              const questionText = isString ? q : q.question;
+              const options = isString ? [] : (q.options || []);
+
               return (
                 <div className="qs-q-block" key={i}>
                   <p className="qs-q-num">Question {i + 1}</p>
-                  <p className="qs-q-text">{q.question}</p>
-                  <div className="qs-options">
-                    {q.options.map((opt, idx) => (
-                      <label
-                        key={idx}
-                        className={`qs-option${selected === opt ? " selected" : ""}`}
-                      >
-                        <input
-                          type="radio"
-                          name={`${currentGoal.goalId}-${i}`}
-                          checked={selected === opt}
-                          onChange={() => handleChange(currentGoal.goalId, i, opt)}
-                        />
-                        <span className="qs-radio">
-                          <span className="qs-radio-dot" />
-                        </span>
-                        <span className="qs-opt-text">{opt}</span>
-                      </label>
-                    ))}
-                  </div>
+                  <p className="qs-q-text">{questionText}</p>
+                  
+                  {isString || options.length === 0 ? (
+                    <input
+                      className="qs-input"
+                      value={selected || ""}
+                      onChange={(e) => handleChange(currentGoal.goalId, i, e.target.value)}
+                      placeholder="Type your answer..."
+                    />
+                  ) : (
+                    <div className="qs-options">
+                      {options.map((opt, idx) => (
+                        <label
+                          key={idx}
+                          className={`qs-option${selected === opt ? " selected" : ""}`}
+                        >
+                          <input
+                            type="radio"
+                            name={`${currentGoal.goalId}-${i}`}
+                            checked={selected === opt}
+                            onChange={() => handleChange(currentGoal.goalId, i, opt)}
+                          />
+                          <span className="qs-radio">
+                            <span className="qs-radio-dot" />
+                          </span>
+                          <span className="qs-opt-text">{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
