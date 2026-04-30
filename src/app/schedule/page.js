@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { post } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function Schedule() {
+function ScheduleInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -194,5 +194,13 @@ export default function Schedule() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function Schedule() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ScheduleInner />
+    </Suspense>
   );
 }

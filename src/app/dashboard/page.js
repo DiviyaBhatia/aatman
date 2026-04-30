@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { get } from "@/lib/api";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 const DOMAIN_ICONS = {
   knowledge: (

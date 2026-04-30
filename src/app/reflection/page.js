@@ -1,36 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { post } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 
-
-export default function Reflection() {
+function ReflectionInner() {
   const router = useRouter();
 const searchParams = useSearchParams();
-const rawGoalId = searchParams.get("goalId");
-const goalId = rawGoalId ? Number(rawGoalId) : null;
+const [goalId, setGoalId] = useState(null);
+
+useEffect(() => {
+  const raw = searchParams.get("goalId");
+  if (raw) setGoalId(Number(raw));
+}, [searchParams]);
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    async function fetchReflection() {
-      try {
-        const res = await post("/generate-reflection");
-        setQuestions(res.questions || []);
-      } catch (err) {
-        console.error("Reflection fetch error:", err);
-        alert("Failed to load reflection questions");
-      } finally {
-        setLoading(false);
-      }
-    }
+ useEffect(() => {
+  if (!goalId) return;
 
-    fetchReflection();
-  }, []);
+  async function fetchReflection() {
+    try {
+      const res = await post("/generate-reflection", { goalId });
+      setQuestions(res.questions || []);
+      setAnswers(new Array(res.questions.length).fill(""));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  fetchReflection();
+}, [goalId]);
 
   const handleChange = (i, value) => {
     setAnswers(prev => {
@@ -54,12 +59,14 @@ const goalId = rawGoalId ? Number(rawGoalId) : null;
   setSubmitting(true);
 
   try {
-    await post("/evaluate-day", {
-      goalId,
-      answers
-    });
+   await post("/submit-reflection", {
+  goalId,
+  answers
+});
 
-    await post("/generate-plan");
+await post("/evaluate-day", {
+  goalId
+});
 
     router.push(`/dashboard?goalId=${goalId}`);
 
@@ -74,6 +81,10 @@ const goalId = rawGoalId ? Number(rawGoalId) : null;
   if (loading) {
     return <div>Loading reflection...</div>;
   }
+
+  if (!goalId) {
+  return <div>Loading...</div>;
+}
 
   return (
     <>
@@ -136,5 +147,13 @@ const goalId = rawGoalId ? Number(rawGoalId) : null;
         </div>
       </div>
     </>
+  );
+}
+
+export default function Reflection() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ReflectionInner />
+    </Suspense>
   );
 }
