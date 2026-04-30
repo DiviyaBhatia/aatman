@@ -8,7 +8,7 @@ const fields = [
   {
     key: "name",
     label: "What should I call you?",
-    placeholder: "e.g., Diviya",
+    placeholder: "e.g., John Doe",
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
@@ -50,7 +50,7 @@ const fields = [
 
 export default function Onboarding() {
   const router = useRouter();
-  const [form, setForm] = useState({ name: "", free_time: "", preferred_time: "", constraint: "" });
+  const [form, setForm] = useState({ name: "",  free_time: 1, preferred_time: "", constraint: "" });
   const [focused, setFocused] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -244,6 +244,64 @@ export default function Onboarding() {
           display: flex; align-items: center; justify-content: center;
           flex-shrink: 0;
         }
+          .ob-stepper-wrap {
+  width: 100%;
+  height: 48px;
+  border: 1.5px solid #e8e2f4;
+  border-radius: 14px;
+  background: #fff;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 10px 0 48px; /* IMPORTANT: keeps icon spacing */
+}
+
+.ob-step-value {
+  flex: 1;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 400;
+  color: #1a1425;
+}
+
+.ob-step-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ob-step-controls button {
+  width: 28px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid #e8e2f4;
+  background: #faf8ff;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.ob-step-controls button:hover {
+  border-color: #7c5cdb;
+  color: #5b3fcf;
+}
+
+        .ob-step-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1.5px solid #e8e2f4;
+  background: #fff;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.ob-step-btn:hover {
+  border-color: #7c5cdb;
+}
 
         .ob-spinner {
           width: 18px; height: 18px;
@@ -275,14 +333,66 @@ export default function Onboarding() {
                 <label className="ob-label">{label}</label>
                 <div className={`ob-input-wrap${focused === key ? " focused" : ""}`}>
                   <span className="ob-icon">{icon}</span>
-                  <input
-                    className="ob-input"
-                    placeholder={placeholder}
-                    value={form[key]}
-                    onChange={e => setForm({ ...form, [key]: e.target.value })}
-                    onFocus={() => setFocused(key)}
-                    onBlur={() => setFocused(null)}
-                  />
+                  {key === "preferred_time" ? (
+  <select
+    className="ob-input"
+    value={form.preferred_time}
+    onChange={(e) =>
+      setForm({ ...form, preferred_time: e.target.value })
+    }
+    onFocus={() => setFocused(key)}
+    onBlur={() => setFocused(null)}
+  >
+    <option value="">Select time</option>
+    <option value="morning">Morning</option>
+    <option value="afternoon">Afternoon</option>
+    <option value="evening">Evening</option>
+    <option value="night">Night</option>
+  </select>
+) : key === "free_time" ? (
+  <div className="ob-stepper-wrap">
+    <span className="ob-step-value">
+      {form.free_time} hr
+    </span>
+
+    <div className="ob-step-controls">
+      <button
+        type="button"
+        onClick={() =>
+          setForm(prev => ({
+            ...prev,
+            free_time: prev.free_time + 1
+          }))
+        }
+      >
+        +
+      </button>
+
+      <button
+        type="button"
+        onClick={() =>
+          setForm(prev => ({
+            ...prev,
+            free_time: Math.max(1, prev.free_time - 1)
+          }))
+        }
+      >
+        −
+      </button>
+    </div>
+  </div>
+) : (
+  <input
+    className="ob-input"
+    placeholder={placeholder}
+    value={form[key]}
+    onChange={(e) =>
+      setForm({ ...form, [key]: e.target.value })
+    }
+    onFocus={() => setFocused(key)}
+    onBlur={() => setFocused(null)}
+  />
+)}
                 </div>
               </div>
             ))}

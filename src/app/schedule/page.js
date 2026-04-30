@@ -121,17 +121,64 @@ export default function Schedule() {
           <h1 className="sc-heading">Set your <em>schedule</em></h1>
 
           <div className="sc-card">
-            {questions.map((q, i) => (
-              <div className="sc-q-block" key={i}>
-                <p className="sc-q-text">{q}</p>
-                <input
-                  className="sc-input"
-                  value={answers[i] || ""}
-                  onChange={(e) => handleChange(i, e.target.value)}
-                  placeholder="Type your answer..."
-                />
-              </div>
-            ))}
+           {questions.map((q, i) => (
+  <div className="sc-q-block" key={i}>
+    <p className="sc-q-text">{q.question}</p>
+
+    {q.type === "number" ? (
+      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <button
+          onClick={() =>
+            handleChange(i, Math.max(q.min, (answers[i] ?? q.default) - 1))
+          }
+        >
+          -
+        </button>
+
+        <span style={{ minWidth: "60px", textAlign: "center" }}>
+          {answers[i] ?? q.default}
+        </span>
+
+        <button
+          onClick={() =>
+            handleChange(i, Math.min(q.max, (answers[i] ?? q.default) + 1))
+          }
+        >
+          +
+        </button>
+      </div>
+    ) : q.type === "select" ? (
+      <>
+        <select
+          className="sc-input"
+          value={answers[i] || ""}
+          onChange={(e) => handleChange(i, e.target.value)}
+        >
+          <option value="">Select</option>
+          {q.options.map((opt, idx) => (
+            <option key={idx} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+
+        {answers[i] === "other" && (
+          <input
+            className="sc-input"
+            placeholder="Enter your own time"
+            onChange={(e) => handleChange(i, e.target.value)}
+          />
+        )}
+      </>
+    ) : (
+      <input
+        className="sc-input"
+        value={answers[i] || ""}
+        onChange={(e) => handleChange(i, e.target.value)}
+      />
+    )}
+  </div>
+))}
           </div>
         </div>
 

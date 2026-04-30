@@ -32,8 +32,8 @@ export default function GoalPage() {
   const router = useRouter();
   const [domains, setDomains] = useState({ knowledge: false, fitness: false });
   const [goals, setGoals] = useState({
-    knowledge: [{ text: "", timeline: "" }],
-    fitness: [{ text: "", timeline: "" }],
+    knowledge: [{ text: "", timeline: 30 }],
+    fitness: [{ text: "", timeline: 30 }],
   });
   const [loading, setLoading] = useState(false);
 
@@ -46,7 +46,7 @@ export default function GoalPage() {
   };
 
   const addGoal = (domain) =>
-    setGoals(p => ({ ...p, [domain]: [...p[domain], { text: "", timeline: "" }] }));
+    setGoals(p => ({ ...p, [domain]: [...p[domain], { text: "", timeline: 30 }] }));
 
   const removeGoal = (domain, i) => {
     if (goals[domain].length === 1) return;
@@ -360,11 +360,14 @@ export default function GoalPage() {
 
                       <div className="gp-timeline-wrap">
                         <input
-                          className="gp-timeline-input"
-                          placeholder="30"
-                          value={g.timeline}
-                          onChange={e => handleChange(key, i, "timeline", e.target.value)}
-                        />
+  type="number"
+  min="1"
+  className="gp-timeline-input"
+  value={g.timeline}
+  onChange={e =>
+    handleChange(key, i, "timeline", Number(e.target.value))
+  }
+/>
                         <span className="gp-days-label">days</span>
                       </div>
 

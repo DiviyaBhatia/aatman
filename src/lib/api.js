@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:3001";
+const BASE_URL = "https://aatman-backend-9yq2.onrender.com";
 
 export async function post(endpoint, data) {
   const res = await fetch(`${BASE_URL}${endpoint}`, {
