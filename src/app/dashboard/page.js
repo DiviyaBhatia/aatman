@@ -20,8 +20,10 @@ const DOMAIN_ICONS = {
   ),
 };
 
+const API = "https://aatman-backend-9yq2.onrender.com";
+
 export default function Dashboard() {
-  
+  const router = useRouter();
 
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +34,19 @@ export default function Dashboard() {
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [focusedIdx, setFocusedIdx] = useState(null);
+  const [resetting, setResetting] = useState(false);
+
+  const handleReset = async () => {
+    if (!confirm("Start fresh? This will clear all your goals and progress.")) return;
+    setResetting(true);
+    try {
+      await fetch(`${API}/reset`, { method: "POST" });
+      router.push("/onboarding");
+    } catch (err) {
+      console.error("Reset failed:", err);
+      setResetting(false);
+    }
+  };
 
 //   useEffect(() => {
 //     async function fetchTask() {
@@ -63,7 +78,7 @@ useEffect(() => {
 }, []);
   const openModal = async (t) => {
     setActiveTask(t);
-    const res = await fetch("https://aatman-backend-9yq2.onrender.com/generate-reflection", {
+    const res = await fetch(`${API}/generate-reflection`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ goalId: t.goalId }),
@@ -79,7 +94,7 @@ const handleSubmitReflection = async () => {
 
   setSubmitting(true);
 
-  await fetch("https://aatman-backend-9yq2.onrender.com/evaluate-day", {
+  await fetch(`${API}/evaluate-day`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -99,7 +114,7 @@ const handleSubmitReflection = async () => {
 const handleIncomplete = async () => {
   if (!activeTask) return;
 
-  await fetch("https://aatman-backend-9yq2.onrender.com/mark-incomplete", {
+  await fetch(`${API}/mark-incomplete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -127,6 +142,12 @@ const handleIncomplete = async () => {
 
         .db-inner { position: relative; z-index: 1; max-width: 500px; margin: 0 auto; padding: 56px 24px 0; }
         .db-heading { font-family: 'Instrument Serif', serif; font-size: clamp(38px, 10vw, 52px); font-weight: 400; color: #1a1425; text-align: center; letter-spacing: -0.025em; margin-bottom: 36px; animation: fadeUp 0.5s cubic-bezier(0.22,1,0.36,1) both; line-height: 1.1; }
+
+        .db-topbar { position: relative; z-index: 1; max-width: 500px; margin: 0 auto; padding: 20px 24px 0; display: flex; justify-content: flex-end; }
+        .db-reset-btn { display: flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(255,255,255,0.8); border: 1.5px solid #e8e2f4; border-radius: 99px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: #8a7ab8; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(8px); }
+        .db-reset-btn:hover:not(:disabled) { background: #fff; border-color: #c4b8e8; color: #5b3fcf; box-shadow: 0 2px 12px rgba(91,63,207,0.12); }
+        .db-reset-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .db-reset-spinner { width: 12px; height: 12px; border: 1.5px solid rgba(91,63,207,0.3); border-top-color: #5b3fcf; border-radius: 50%; animation: spin 0.7s linear infinite; }
         .db-heading em { font-style: italic; color: #5b3fcf; }
 
         .db-task-card { background: #fff; border: 1.5px solid #e8e2f4; border-radius: 20px; padding: 20px; margin-bottom: 16px; animation: fadeUp 0.45s 0.1s cubic-bezier(0.22,1,0.36,1) both; }
@@ -292,6 +313,26 @@ const handleIncomplete = async () => {
         <div className="db-blob db-blob-1" />
         <div className="db-blob db-blob-2" />
 
+        {/* ── TOP BAR with Reset ── */}
+        <div className="db-topbar">
+          <button
+            className="db-reset-btn"
+            onClick={handleReset}
+            disabled={resetting}
+            title="Clear all data and start over"
+          >
+            {resetting ? (
+              <div className="db-reset-spinner" />
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+            )}
+            {resetting ? "Resetting…" : "Start Fresh"}
+          </button>
+        </div>
+
         <div className="db-inner">
           <h1 className="db-heading">Today's <em>Tasks</em></h1>
 
@@ -350,7 +391,7 @@ const handleIncomplete = async () => {
 onClick={async () => {
   setLoading(true);
 
-  await fetch("https://aatman-backend-9yq2.onrender.com/generate-plan", {
+  await fetch(`${API}/generate-plan`, {
     method: "POST"
   });
 
