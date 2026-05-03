@@ -4,6 +4,51 @@ import { useEffect, useState } from "react";
 import { get } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
+const dict = {
+  English: {
+    confirmReset: "Start fresh? This will clear all your goals and progress.",
+    today: "Today's",
+    actionPlan: "Action Plan",
+    min: "min",
+    startFresh: "Start fresh",
+    completeActivity: "Complete Activity",
+    reflection: "Reflection",
+    submitReflection: "Submit Reflection",
+    submitting: "Submitting...",
+    loading: "Loading tasks...",
+    close: "Close",
+    nextDay: "Next Day"
+  },
+  Hindi: {
+    confirmReset: "क्या आप सब कुछ रीसेट करना चाहते हैं? इससे आपकी सारी प्रगति मिट जाएगी।",
+    today: "आज की",
+    actionPlan: "कार्य योजना",
+    min: "मिनट",
+    startFresh: "नया शुरू करें",
+    completeActivity: "गतिविधि पूरी करें",
+    reflection: "विचार",
+    submitReflection: "जमा करें",
+    submitting: "जमा किया जा रहा है...",
+    loading: "लोड हो रहा है...",
+    close: "बंद करें",
+    nextDay: "अगला दिन"
+  },
+  Marathi: {
+    confirmReset: "तुम्हाला सर्व काही रिसेट करायचे आहे का? यामुळे तुमची सर्व प्रगती नष्ट होईल.",
+    today: "आजचा",
+    actionPlan: "अॅक्शन प्लॅन",
+    min: "मिनिटे",
+    startFresh: "नवीन सुरुवात करा",
+    completeActivity: "क्रियाकलाप पूर्ण करा",
+    reflection: "विचार",
+    submitReflection: "सबमिट करा",
+    submitting: "सबमिट होत आहे...",
+    loading: "लोड होत आहे...",
+    close: "बंद करा",
+    nextDay: "पुढचा दिवस"
+  }
+};
+
 const DOMAIN_ICONS = {
   knowledge: (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -35,9 +80,20 @@ export default function Dashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [focusedIdx, setFocusedIdx] = useState(null);
   const [resetting, setResetting] = useState(false);
+  const [lang, setLang] = useState("English");
+  const [recordingIndex, setRecordingIndex] = useState(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedLang = localStorage.getItem("preferred_language");
+      if (savedLang) setLang(savedLang);
+    }
+  }, []);
+
+  const t = dict[lang] || dict.English;
 
   const handleReset = async () => {
-    if (!confirm("Start fresh? This will clear all your goals and progress.")) return;
+    if (!confirm(t.confirmReset)) return;
     setResetting(true);
     try {
       await fetch(`${API}/reset`, { method: "POST" });
@@ -87,6 +143,42 @@ useEffect(() => {
     setReflectionQs(data.questions || []);
     setReflectionAns([]);
     setShowModal(true);
+  };
+
+  const startListening = (index) => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert("Voice input is not supported in your browser.");
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    const langCode = lang === "Hindi" ? "hi-IN" : lang === "Marathi" ? "mr-IN" : "en-IN";
+    recognition.lang = langCode;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setRecordingIndex(index);
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      const updated = [...reflectionAns];
+      updated[index] = (updated[index] ? updated[index] + " " : "") + transcript;
+      setReflectionAns(updated);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error", event.error);
+      setRecordingIndex(null);
+    };
+
+    recognition.onend = () => {
+      setRecordingIndex(null);
+    };
+
+    recognition.start();
   };
 
 const handleSubmitReflection = async () => {
@@ -141,171 +233,86 @@ const handleIncomplete = async () => {
         .db-blob-2 { width: 300px; height: 300px; background: #fde8d8; bottom: 40px; left: -80px; opacity: 0.4; }
 
         .db-inner { position: relative; z-index: 1; max-width: 500px; margin: 0 auto; padding: 56px 24px 0; }
-        .db-heading { font-family: 'Instrument Serif', serif; font-size: clamp(38px, 10vw, 52px); font-weight: 400; color: #1a1425; text-align: center; letter-spacing: -0.025em; margin-bottom: 36px; animation: fadeUp 0.5s cubic-bezier(0.22,1,0.36,1) both; line-height: 1.1; }
 
-        .db-topbar { position: relative; z-index: 1; max-width: 500px; margin: 0 auto; padding: 20px 24px 0; display: flex; justify-content: flex-end; }
-        .db-reset-btn { display: flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(255,255,255,0.8); border: 1.5px solid #e8e2f4; border-radius: 99px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: #8a7ab8; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(8px); }
-        .db-reset-btn:hover:not(:disabled) { background: #fff; border-color: #c4b8e8; color: #5b3fcf; box-shadow: 0 2px 12px rgba(91,63,207,0.12); }
-        .db-reset-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .db-reset-spinner { width: 12px; height: 12px; border: 1.5px solid rgba(91,63,207,0.3); border-top-color: #5b3fcf; border-radius: 50%; animation: spin 0.7s linear infinite; }
-        .db-heading em { font-style: italic; color: #5b3fcf; }
+        .db-header {
+          margin-bottom: 32px;
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          animation: fadeUp 0.4s cubic-bezier(0.22,1,0.36,1) both;
+        }
+
+        .db-header-left { display: flex; flex-direction: column; gap: 4px; }
+
+        .db-title {
+          font-family: 'Instrument Serif', serif;
+          font-size: clamp(36px, 8vw, 46px);
+          font-weight: 400; color: #1a1425;
+          letter-spacing: -0.015em; line-height: 1.1;
+        }
+        .db-title em { font-style: italic; color: #5b3fcf; }
+
+        .db-date {
+          font-size: 14px; color: #9b8ecf; font-weight: 500;
+          letter-spacing: 0.04em; text-transform: uppercase;
+        }
+
+        .db-reset-btn {
+          background: #fff;
+          border: 1.5px solid #e8e2f4;
+          color: #e8a0a0;
+          font-family: 'DM Sans', sans-serif;
+          font-size: 13px; font-weight: 500;
+          padding: 8px 14px;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .db-reset-btn:hover { background: #fff0f0; border-color: #fca5a5; color: #d85a5a; }
+
+        .db-mic-btn {
+          background: #f0eaff; border: 1px solid #d4c4f9; border-radius: 50%; width: 40px; height: 40px;
+          display: flex; align-items: center; justify-content: center; cursor: pointer; color: #5b3fcf;
+          flex-shrink: 0; transition: all 0.2s;
+        }
+        .db-mic-btn:hover { background: #e3d6fc; }
+        .db-mic-btn.recording {
+          background: #ffeaec; border-color: #fca5a5; color: #ef4444; animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+          70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
 
         .db-task-card { background: #fff; border: 1.5px solid #e8e2f4; border-radius: 20px; padding: 20px; margin-bottom: 16px; animation: fadeUp 0.45s 0.1s cubic-bezier(0.22,1,0.36,1) both; }
         .db-domain-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 99px; background: #ede8ff; color: #5b3fcf; font-size: 12px; font-weight: 500; letter-spacing: 0.04em; text-transform: capitalize; }
-        .db-task-goal { font-size: 13px; font-weight: 500; color: #7c5cdb; letter-spacing: 0.05em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
-        .db-task-title { font-size: 18px; font-weight: 500; color: #1a1425; margin-bottom: 12px; line-height: 1.4; letter-spacing: -0.01em; }
-        .db-task-meta { display: flex; gap: 12px; }
-        .db-meta-pill { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f7f4ff; border-radius: 10px; font-size: 13px; color: #5a4a8a; font-weight: 400; }
+        .db-duration { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #8a8099; }
+        .db-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .db-card-title { font-size: 18px; font-weight: 500; color: #1a1425; margin-bottom: 16px; line-height: 1.4; }
         .db-empty { text-align: center; font-size: 15px; color: #8a8099; padding: 40px 0; }
 
-        .db-btn { width: 100%; padding: 17px 24px; background: #4f35b8; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 500; letter-spacing: 0.02em; border: none; border-radius: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background 0.2s, transform 0.15s, box-shadow 0.2s; box-shadow: 0 4px 20px rgba(79,53,184,0.28); margin-top: 16px; }
-        .db-btn:hover { background: #3f28a0; box-shadow: 0 6px 28px rgba(79,53,184,0.36); transform: translateY(-1px); }
-        .db-btn:active { transform: translateY(0); }
+        .db-btn { width: 100%; padding: 17px 24px; background: #4f35b8; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 500; letter-spacing: 0.02em; border: none; border-radius: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background 0.2s, transform 0.15s, box-shadow 0.2s; box-shadow: 0 4px 20px rgba(79,53,184,0.28); }
+        .db-btn:hover { background: #3f28a0; box-shadow: 0 6px 28px rgba(79,53,184,0.36); }
         .db-btn-arrow { width: 22px; height: 22px; background: rgba(255,255,255,0.18); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-
-        .db-end-btn { margin-top: 32px; animation: fadeUp 0.45s 0.2s cubic-bezier(0.22,1,0.36,1) both; }
 
         @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* ── MODAL OVERLAY ── */
-        .modal-overlay {
-          position: fixed; inset: 0; z-index: 100;
-          display: flex; align-items: flex-end; justify-content: center;
-          animation: overlayIn 0.25s ease both;
-        }
+        .modal-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center; animation: overlayIn 0.25s ease both; }
         @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
-
-        .modal-backdrop {
-          position: absolute; inset: 0;
-          background: rgba(26, 20, 37, 0.45);
-          backdrop-filter: blur(4px);
-          -webkit-backdrop-filter: blur(4px);
-        }
-
-        /* ── MODAL SHEET ── */
-        .modal-sheet {
-          position: relative; z-index: 1;
-          width: 100%; max-width: 540px;
-          background: #faf8f5;
-          border-radius: 28px 28px 0 0;
-          overflow: hidden;
-          animation: sheetUp 0.38s cubic-bezier(0.22,1,0.36,1) both;
-          max-height: 92dvh;
-          display: flex; flex-direction: column;
-        }
+        .modal-backdrop { position: absolute; inset: 0; background: rgba(26, 20, 37, 0.45); backdrop-filter: blur(4px); }
+        .modal-sheet { position: relative; z-index: 1; width: 100%; max-width: 540px; background: #faf8f5; border-radius: 28px 28px 0 0; overflow: hidden; animation: sheetUp 0.38s cubic-bezier(0.22,1,0.36,1) both; max-height: 92dvh; display: flex; flex-direction: column; }
         @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
-        /* drag handle */
-        .modal-handle {
-          width: 36px; height: 4px; border-radius: 99px;
-          background: #d4cce8; margin: 14px auto 0; flex-shrink: 0;
-        }
-
-        /* blobs inside modal */
-        .modal-blob {
-          position: absolute; border-radius: 50%;
-          filter: blur(60px); pointer-events: none; z-index: 0;
-        }
-        .modal-blob-1 { width: 260px; height: 260px; background: #ede8ff; top: -80px; right: -60px; opacity: 0.5; }
-        .modal-blob-2 { width: 200px; height: 200px; background: #fde8d8; bottom: 80px; left: -60px; opacity: 0.4; }
-
-        .modal-scroll {
-          position: relative; z-index: 1;
-          overflow-y: auto; flex: 1;
-          padding: 28px 24px 12px;
-          -webkit-overflow-scrolling: touch;
-        }
-
-        .modal-heading {
-          font-family: 'Instrument Serif', serif;
-          font-size: clamp(30px, 8vw, 40px);
-          font-weight: 400; line-height: 1.1;
-          color: #1a1425; text-align: center;
-          letter-spacing: -0.025em;
-          margin-bottom: 32px;
-        }
-        .modal-heading em { font-style: italic; color: #5b3fcf; }
-
-        /* questions card */
-        .modal-card {
-          background: #fff; border: 1.5px solid #e8e2f4;
-          border-radius: 20px; overflow: hidden;
-          margin-bottom: 16px;
-        }
-
-        .modal-q-block {
-          padding: 20px 20px;
-          border-bottom: 1px solid #f5f0fc;
-        }
-        .modal-q-block:last-child { border-bottom: none; }
-
-        .modal-q-label {
-          font-size: 15px; font-weight: 500; color: #1a1425;
-          line-height: 1.5; margin-bottom: 12px; letter-spacing: -0.005em;
-        }
-
-        .modal-textarea {
-          width: 100%;
-          min-height: 72px;
-          padding: 13px 15px;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 14px; font-weight: 300; color: #1a1425;
-          background: #f7f4ff;
-          border: 1.5px solid #ebe5f8;
-          border-radius: 12px; outline: none; resize: none;
-          transition: border-color 0.2s, box-shadow 0.2s;
-          line-height: 1.6;
-          -webkit-appearance: none;
-        }
-        .modal-textarea::placeholder { color: #c4bdd8; }
-        .modal-textarea:focus {
-          border-color: #7c5cdb;
-          box-shadow: 0 0 0 3px rgba(92,63,207,0.09);
-          background: #fff;
-        }
-
-        /* footer inside modal */
-        .modal-footer {
-          position: relative; z-index: 1;
-          padding: 12px 24px 32px;
-          border-top: 1px solid #f0eaf8;
-          background: rgba(250,248,245,0.95);
-          backdrop-filter: blur(10px);
-          display: flex; flex-direction: column; gap: 10px;
-          flex-shrink: 0;
-        }
-
-        .modal-btn-primary {
-          width: 100%; padding: 17px 24px;
-          background: #4f35b8; color: #fff;
-          font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 500;
-          letter-spacing: 0.02em; border: none; border-radius: 14px; cursor: pointer;
-          display: flex; align-items: center; justify-content: center; gap: 10px;
-          transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-          box-shadow: 0 4px 20px rgba(79,53,184,0.28);
-        }
-        .modal-btn-primary:hover:not(:disabled) { background: #3f28a0; transform: translateY(-1px); box-shadow: 0 6px 28px rgba(79,53,184,0.36); }
-        .modal-btn-primary:active:not(:disabled) { transform: translateY(0); }
-        .modal-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .modal-btn-ghost {
-          width: 100%; padding: 14px 24px;
-          background: transparent; color: #9b8ecf;
-          font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 400;
-          border: 1.5px solid #e0d8f4; border-radius: 14px; cursor: pointer;
-          transition: border-color 0.2s, color 0.2s, background 0.2s;
-        }
-        .modal-btn-ghost:hover { border-color: #b8aed8; color: #5b3fcf; background: #f7f4ff; }
-
-        .modal-btn-arrow {
-          width: 22px; height: 22px; background: rgba(255,255,255,0.18);
-          border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-        }
-
-        .modal-spinner {
-          width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3);
-          border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite;
-        }
+        .db-modal-content { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+        .db-modal-header { padding: 24px; display: flex; justify-content: space-between; align-items: center; }
+        .db-modal-title { font-family: 'Instrument Serif', serif; font-size: 24px; color: #1a1425; }
+        .db-modal-close { background: none; border: none; cursor: pointer; color: #9b8ecf; }
+        .db-modal-body { overflow-y: auto; padding: 0 24px 24px; }
+        .db-q-block { margin-bottom: 24px; }
+        .db-q-text { font-size: 15px; color: #1a1425; margin-bottom: 12px; font-weight: 500; }
+        .db-input { width: 100%; padding: 12px; background: #fff; border: 1.5px solid #e8e2f4; border-radius: 12px; font-family: inherit; }
+        .db-modal-footer { padding: 24px; border-top: 1px solid #e8e2f4; background: #faf8f5; }
+        .db-spinner { width: 24px; height: 24px; border: 3px solid rgba(0,0,0,0.1); border-top-color: #5b3fcf; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
@@ -313,66 +320,39 @@ const handleIncomplete = async () => {
         <div className="db-blob db-blob-1" />
         <div className="db-blob db-blob-2" />
 
-        {/* ── TOP BAR with Reset ── */}
-        <div className="db-topbar">
-          <button
-            className="db-reset-btn"
-            onClick={handleReset}
-            disabled={resetting}
-            title="Clear all data and start over"
-          >
-            {resetting ? (
-              <div className="db-reset-spinner" />
-            ) : (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                <path d="M3 3v5h5"/>
-              </svg>
-            )}
-            {resetting ? "Resetting…" : "Start Fresh"}
-          </button>
-        </div>
-
         <div className="db-inner">
-          <h1 className="db-heading">Today's <em>Tasks</em></h1>
+          <div className="db-header">
+            <div className="db-header-left">
+              <span className="db-date">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+              <h1 className="db-title">{t.today} <em>{t.actionPlan}</em></h1>
+            </div>
+            <button className="db-reset-btn" onClick={handleReset} disabled={resetting}>
+              {resetting ? t.loading : t.startFresh}
+            </button>
+          </div>
 
           {loading ? (
-            <div className="db-empty">Loading tasks…</div>
+            <div className="db-empty">{t.loading}</div>
           ) : tasks && tasks.length > 0 ? (
-            <div>
-              {tasks.map((t, i) => (
-                <div key={i} className="db-task-card">
-                  <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "12px", flexWrap: "wrap" }}>
-                    {t.domain && (
+            <div className="db-task-list">
+              {tasks.map((tItem, i) => (
+                <div className="db-task-card" key={i} style={{ animationDelay: `${i * 0.08 + 0.1}s` }}>
+                  <div className="db-card-header">
+                    {tItem.domain && (
                       <span className="db-domain-pill">
-                        {DOMAIN_ICONS[t.domain] ?? null}
-                        {t.domain}
+                        {DOMAIN_ICONS[tItem.domain] ?? null}
+                        {tItem.domain}
                       </span>
                     )}
-                    <span className="db-task-goal">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
-                      </svg>
-                      {t.goal}
-                    </span>
+                    {tItem.time_minutes && (
+                      <span className="db-duration">
+                        {tItem.time_minutes} {t.min}
+                      </span>
+                    )}
                   </div>
-                  <div className="db-task-title">{t.task}</div>
-                  <div className="db-task-meta">
-                    <span className="db-meta-pill">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                      </svg>
-                      {t.time_minutes} mins
-                    </span>
-                    <span className="db-meta-pill">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-                      </svg>
-                      {t.suggested_time}
-                    </span>
-                  </div>
-                  <button className="db-btn" onClick={() => openModal(t)}>
-                    Mark as Done
+                  <h2 className="db-card-title">{tItem.task}</h2>
+                  <button className="db-btn" onClick={() => openModal(tItem)}>
+                    {t.completeActivity}
                     <span className="db-btn-arrow">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -383,96 +363,90 @@ const handleIncomplete = async () => {
               ))}
             </div>
           ) : (
-            <div className="db-empty">No tasks today. Take a break!</div>
+            <div className="db-empty">No tasks today.</div>
           )}
 
-         <button
-  className="db-btn db-end-btn"
-onClick={async () => {
-  setLoading(true);
-
-  await fetch(`${API}/generate-plan`, {
-    method: "POST"
-  });
-
-  const res = await get("/today-task");
-  setTasks(res.tasks || []);
-
-  setLoading(false);
-}}
->
-  Next Day
-  <span className="db-btn-arrow">
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 12h14M12 5l7 7-7 7"/>
-    </svg>
-  </span>
-</button>
+          <button
+            className="db-btn"
+            style={{ marginTop: '32px' }}
+            onClick={async () => {
+              setLoading(true);
+              await fetch(`${API}/generate-plan`, { method: "POST" });
+              const res = await get("/today-task");
+              setTasks(res.tasks || []);
+              setLoading(false);
+            }}
+          >
+            {t.nextDay}
+            <span className="db-btn-arrow">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </span>
+          </button>
         </div>
       </div>
 
-      {/* ── REFLECTION MODAL ── */}
       {showModal && (
         <div className="modal-overlay">
           <div className="modal-backdrop" onClick={() => setShowModal(false)} />
-
           <div className="modal-sheet">
-            <div className="modal-blob modal-blob-1" />
-            <div className="modal-blob modal-blob-2" />
-
-            {/* drag handle */}
-            <div className="modal-handle" />
-
-            {/* scrollable content */}
-            <div className="modal-scroll">
-              <h2 className="modal-heading">
-                Reflect on your <em>day</em>
-              </h2>
-
-              <div className="modal-card">
-                {reflectionQs.map((q, i) => (
-                  <div className="modal-q-block" key={i}>
-                    <p className="modal-q-label">{q}</p>
-                    <textarea
-                      className="modal-textarea"
-                      placeholder="Type your thoughts…"
-                      value={reflectionAns[i] || ""}
-                      onFocus={() => setFocusedIdx(i)}
-                      onBlur={() => setFocusedIdx(null)}
-                      onChange={(e) => {
-                        const updated = [...reflectionAns];
-                        updated[i] = e.target.value;
-                        setReflectionAns(updated);
-                      }}
-                    />
-                  </div>
-                ))}
+            <div className="db-modal-content">
+              <div className="db-modal-header">
+                <h2 className="db-modal-title">{t.reflection}</h2>
+                <button className="db-modal-close" onClick={() => setShowModal(false)}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
               </div>
-            </div>
 
-            {/* sticky footer buttons */}
-            <div className="modal-footer">
-              <button
-                className="modal-btn-primary"
-                onClick={handleSubmitReflection}
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <div className="modal-spinner" />
+              <div className="db-modal-body">
+                {reflectionQs.length === 0 ? (
+                  <div style={{ padding: '40px 0', textAlign: 'center', color: '#9b8ecf' }}>
+                    <div className="db-spinner" style={{ borderColor: 'rgba(91,63,207,0.2)', borderTopColor: '#5b3fcf', margin: '0 auto 16px' }} />
+                    {t.loading}
+                  </div>
                 ) : (
-                  <>
-                    Submit
-                    <span className="modal-btn-arrow">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14M12 5l7 7-7 7"/>
-                      </svg>
-                    </span>
-                  </>
+                  <div className="db-q-list">
+                    {reflectionQs.map((q, i) => (
+                      <div className="db-q-block" key={i}>
+                        <p className="db-q-text">{q}</p>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <input
+                            className="db-input"
+                            value={reflectionAns[i] || ""}
+                            onChange={(e) => {
+                              const arr = [...reflectionAns];
+                              arr[i] = e.target.value;
+                              setReflectionAns(arr);
+                            }}
+                            onFocus={() => setFocusedIdx(i)}
+                            onBlur={() => setFocusedIdx(null)}
+                            placeholder="Your answer..."
+                          />
+                          <button 
+                            className={`db-mic-btn ${recordingIndex === i ? 'recording' : ''}`}
+                            onClick={() => startListening(i)}
+                            title="Speak answer"
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </button>
-              <button className="modal-btn-ghost" onClick={handleIncomplete}>
-                Couldn't complete this
-              </button>
+              </div>
+
+              {reflectionQs.length > 0 && (
+                <div className="db-modal-footer" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button className="db-btn" style={{ width: '100%', animation: 'none', transform: 'none' }} onClick={handleSubmitReflection} disabled={submitting}>
+                    {submitting ? t.submitting : t.submitReflection}
+                  </button>
+                  <button className="db-btn" style={{ width: '100%', background: 'transparent', color: '#9b8ecf', border: '1.5px solid #e0d8f4', boxShadow: 'none' }} onClick={handleIncomplete}>
+                    Couldn't complete this
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

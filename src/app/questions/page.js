@@ -4,6 +4,42 @@ import { useEffect, useState } from "react";
 import { post } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
+const dict = {
+  English: {
+    loadingText: "Crafting your questions…",
+    title1: "Your", title2: "questions",
+    goalStep: "Goal", of: "of",
+    question: "Question",
+    placeholder: "Type your answer...",
+    back: "Back",
+    nextGoal: "Next goal",
+    generatePlan: "Generate my plan",
+    alert: "Please answer all questions before continuing."
+  },
+  Hindi: {
+    loadingText: "आपके प्रश्न तैयार किए जा रहे हैं…",
+    title1: "आपके", title2: "प्रश्न",
+    goalStep: "लक्ष्य", of: "/",
+    question: "प्रश्न",
+    placeholder: "अपना उत्तर टाइप करें...",
+    back: "पीछे",
+    nextGoal: "अगला लक्ष्य",
+    generatePlan: "मेरी योजना बनाएं",
+    alert: "कृपया आगे बढ़ने से पहले सभी प्रश्नों के उत्तर दें।"
+  },
+  Marathi: {
+    loadingText: "तुमचे प्रश्न तयार होत आहेत…",
+    title1: "तुमचे", title2: "प्रश्न",
+    goalStep: "ध्येय", of: "/",
+    question: "प्रश्न",
+    placeholder: "तुमचे उत्तर टाइप करा...",
+    back: "मागे",
+    nextGoal: "पुढचे ध्येय",
+    generatePlan: "माझा प्लॅन तयार करा",
+    alert: "कृपया पुढे जाण्यापूर्वी सर्व प्रश्नांची उत्तरे द्या."
+  }
+};
+
 const DOMAIN_ICONS = {
   knowledge: (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -27,8 +63,13 @@ export default function Questions() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [currentGoalIndex, setCurrentGoalIndex] = useState(0);
+  const [lang, setLang] = useState("English");
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedLang = localStorage.getItem("preferred_language");
+      if (savedLang) setLang(savedLang);
+    }
     async function fetchQuestions() {
       setLoading(true);
       const res = await post("/generate-questions");
@@ -37,6 +78,8 @@ export default function Questions() {
     }
     fetchQuestions();
   }, []);
+
+  const t = dict[lang] || dict.English;
 
   const handleChange = (goalId, index, value) => {
     setAnswers(prev => {
@@ -60,7 +103,7 @@ export default function Questions() {
 
   const handleNext = () => {
     if (!allCurrentAnswered) {
-      alert("Please answer all questions before continuing.");
+      alert(t.alert);
       return;
     }
     setCurrentGoalIndex(prev => prev + 1);
@@ -74,7 +117,7 @@ export default function Questions() {
 
   const handleSubmit = async () => {
   if (!allCurrentAnswered) {
-    alert("Please answer all questions before continuing.");
+    alert(t.alert);
     return;
   }
 
@@ -119,7 +162,7 @@ export default function Questions() {
         `}</style>
         <div className="ld-root">
           <div className="ld-ring" />
-          <p className="ld-text">Crafting your questions…</p>
+          <p className="ld-text">{t.loadingText}</p>
         </div>
       </>
     );
@@ -326,8 +369,8 @@ export default function Questions() {
         {/* STICKY HEADER */}
         <div className="qs-header">
           <div className="qs-header-row">
-            <span className="qs-header-title">Your <em>questions</em></span>
-            <span className="qs-step-label">Goal {currentGoalIndex + 1} of {goalsData.length}</span>
+            <span className="qs-header-title">{t.title1} <em>{t.title2}</em></span>
+            <span className="qs-step-label">{t.goalStep} {currentGoalIndex + 1} {t.of} {goalsData.length}</span>
           </div>
           <div className="qs-progress-track">
             <div className="qs-progress-fill" style={{ width: `${progress}%` }} />
@@ -355,7 +398,7 @@ export default function Questions() {
 
               return (
                 <div className="qs-q-block" key={i}>
-                  <p className="qs-q-num">Question {i + 1}</p>
+                  <p className="qs-q-num">{t.question} {i + 1}</p>
                   <p className="qs-q-text">{questionText}</p>
                   
                   {isString || options.length === 0 ? (
@@ -363,7 +406,7 @@ export default function Questions() {
                       className="qs-input"
                       value={selected || ""}
                       onChange={(e) => handleChange(currentGoal.goalId, i, e.target.value)}
-                      placeholder="Type your answer..."
+                      placeholder={t.placeholder}
                     />
                   ) : (
                     <div className="qs-options">
@@ -400,7 +443,7 @@ export default function Questions() {
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M19 12H5M12 19l-7-7 7-7"/>
                 </svg>
-                Back
+                {t.back}
               </button>
             )}
 
@@ -410,7 +453,7 @@ export default function Questions() {
                 onClick={handleNext}
                 disabled={!allCurrentAnswered}
               >
-                Next goal
+                {t.nextGoal}
                 <span className="qs-btn-arrow">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -427,7 +470,7 @@ export default function Questions() {
                   <div className="qs-spinner" />
                 ) : (
                   <>
-                    Generate my plan
+                    {t.generatePlan}
                     <span className="qs-btn-arrow">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M5 12h14M12 5l7 7-7 7"/>

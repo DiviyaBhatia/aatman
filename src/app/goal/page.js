@@ -1,66 +1,112 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { post } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
-const DOMAINS = [
-  {
-    key: "knowledge",
-    label: "Knowledge",
-    placeholder: "e.g., Read 10 books",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-      </svg>
-    ),
+const dict = {
+  English: {
+    heading1: "Set your", heading2: "goals",
+    sub1: "Choose the areas you want to focus on", sub2: "and add your goals with timelines.",
+    fitness: "Fitness goals",
+    placeholder: "e.g., Go for a 10 min walk",
+    days: "days",
+    add: "Add another goal",
+    info: "You can add multiple fitness goals. We'll create a gentle, step-by-step plan for you.",
+    skip: "Skip", continue: "Continue"
   },
-  {
-    key: "fitness",
-    label: "Fitness",
-    placeholder: "e.g., Do 20 push-ups daily",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6.5 6.5h11M6.5 17.5h11M3 10h18M3 14h18"/>
-        <rect x="1" y="8" width="3" height="8" rx="1.5"/><rect x="20" y="8" width="3" height="8" rx="1.5"/>
-      </svg>
-    ),
+  Hindi: {
+    heading1: "अपने", heading2: "लक्ष्य निर्धारित करें",
+    sub1: "जिन क्षेत्रों पर आप ध्यान केंद्रित करना चाहते हैं उन्हें चुनें", sub2: "और समय सीमा के साथ अपने लक्ष्य जोड़ें।",
+    fitness: "फिटनेस लक्ष्य",
+    placeholder: "उदाहरण: 10 मिनट टहलें",
+    days: "दिन",
+    add: "एक और लक्ष्य जोड़ें",
+    info: "आप कई फिटनेस लक्ष्य जोड़ सकते हैं। हम आपके लिए एक आसान, चरण-दर-चरण योजना बनाएंगे।",
+    skip: "छोड़ें", continue: "आगे बढ़ें"
   },
-];
+  Marathi: {
+    heading1: "तुमची", heading2: "ध्येये निश्चित करा",
+    sub1: "तुम्हाला लक्ष केंद्रित करायचे असलेले क्षेत्र निवडा", sub2: "आणि वेळेसह तुमची ध्येये जोडा.",
+    fitness: "फिटनेस ध्येये",
+    placeholder: "उदा. 10 मिनिटे चालायला जा",
+    days: "दिवस",
+    add: "आणखी एक ध्येय जोडा",
+    info: "तुम्ही अनेक फिटनेस ध्येये जोडू शकता. आम्ही तुमच्यासाठी एक सोपा, टप्प्याटप्प्याने प्लॅन बनवू.",
+    skip: "वगळा", continue: "पुढे जा"
+  }
+};
 
 export default function GoalPage() {
   const router = useRouter();
-  const [domains, setDomains] = useState({ knowledge: false, fitness: false });
-  const [goals, setGoals] = useState({
-    knowledge: [{ text: "", timeline: 30 }],
-    fitness: [{ text: "", timeline: 30 }],
-  });
+  const [goals, setGoals] = useState([{ text: "", timeline: 30 }]);
   const [loading, setLoading] = useState(false);
+  const [lang, setLang] = useState("English");
+  const [recordingIndex, setRecordingIndex] = useState(null);
 
-  const toggleDomain = (d) => setDomains(p => ({ ...p, [d]: !p[d] }));
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedLang = localStorage.getItem("preferred_language");
+      if (savedLang) setLang(savedLang);
+    }
+  }, []);
 
-  const handleChange = (domain, i, field, value) => {
-    const updated = [...goals[domain]];
+  const t = dict[lang] || dict.English;
+
+  const handleChange = (i, field, value) => {
+    const updated = [...goals];
     updated[i] = { ...updated[i], [field]: value };
-    setGoals(p => ({ ...p, [domain]: updated }));
+    setGoals(updated);
   };
 
-  const addGoal = (domain) =>
-    setGoals(p => ({ ...p, [domain]: [...p[domain], { text: "", timeline: 30 }] }));
+  const startListening = (index) => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert("Voice input is not supported in your browser.");
+      return;
+    }
 
-  const removeGoal = (domain, i) => {
-    if (goals[domain].length === 1) return;
-    setGoals(p => ({ ...p, [domain]: p[domain].filter((_, idx) => idx !== i) }));
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    const langCode = lang === "Hindi" ? "hi-IN" : lang === "Marathi" ? "mr-IN" : "en-IN";
+    recognition.lang = langCode;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setRecordingIndex(index);
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      const updated = [...goals];
+      updated[index] = { ...updated[index], text: (updated[index].text ? updated[index].text + " " : "") + transcript };
+      setGoals(updated);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error", event.error);
+      setRecordingIndex(null);
+    };
+
+    recognition.onend = () => {
+      setRecordingIndex(null);
+    };
+
+    recognition.start();
+  };
+
+  const addGoal = () => setGoals(p => [...p, { text: "", timeline: 30 }]);
+
+  const removeGoal = (i) => {
+    if (goals.length === 1) return;
+    setGoals(p => p.filter((_, idx) => idx !== i));
   };
 
   const handleSubmit = async () => {
     setLoading(true);
-    for (const domain of Object.keys(domains)) {
-      if (!domains[domain]) continue;
-      for (const g of goals[domain]) {
-        if (!g.text || !g.timeline) continue;
-        await post("/start-goal", { goal: g.text, timeline: g.timeline, domain });
-      }
+    for (const g of goals) {
+      if (!g.text || !g.timeline) continue;
+      await post("/start-goal", { goal: g.text, timeline: g.timeline });
     }
     router.push("/questions");
   };
@@ -127,57 +173,6 @@ export default function GoalPage() {
           to   { opacity: 1; transform: translateY(0); }
         }
 
-        /* ---- DOMAIN TOGGLES ---- */
-        .gp-section-label {
-          font-size: 12px; font-weight: 500; letter-spacing: 0.1em;
-          color: #b0a5cc; text-transform: uppercase; margin-bottom: 12px;
-        }
-
-        .gp-domains {
-          display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-          margin-bottom: 32px;
-          animation: fadeUp 0.5s 0.12s cubic-bezier(0.22,1,0.36,1) both;
-        }
-
-        .gp-domain-btn {
-          position: relative;
-          display: flex; align-items: center; gap: 12px;
-          padding: 16px 16px;
-          background: #fff; border: 1.5px solid #e8e2f4;
-          border-radius: 16px; cursor: pointer;
-          transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
-          font-family: 'DM Sans', sans-serif;
-        }
-        .gp-domain-btn:hover { border-color: #c4b8ef; }
-        .gp-domain-btn.active {
-          border-color: #7c5cdb;
-          background: #f7f4ff;
-          box-shadow: 0 0 0 4px rgba(92,63,207,0.07);
-        }
-
-        .gp-domain-icon {
-          width: 42px; height: 42px; border-radius: 12px;
-          display: flex; align-items: center; justify-content: center;
-          background: #ede8ff; color: #5b3fcf; flex-shrink: 0;
-          transition: background 0.2s;
-        }
-        .gp-domain-btn.active .gp-domain-icon { background: #ddd4f9; }
-
-        .gp-domain-name {
-          font-size: 15px; font-weight: 500; color: #1a1425; letter-spacing: 0.01em;
-        }
-
-        .gp-check {
-          position: absolute; top: 10px; right: 10px;
-          width: 20px; height: 20px; border-radius: 6px;
-          background: #5b3fcf;
-          display: flex; align-items: center; justify-content: center;
-          opacity: 0; transform: scale(0.7);
-          transition: opacity 0.18s, transform 0.18s;
-        }
-        .gp-domain-btn.active .gp-check { opacity: 1; transform: scale(1); }
-
-        /* ---- GOAL SECTIONS ---- */
         .gp-goal-section {
           margin-bottom: 24px;
           animation: fadeUp 0.45s cubic-bezier(0.22,1,0.36,1) both;
@@ -224,6 +219,21 @@ export default function GoalPage() {
         .gp-goal-input::placeholder { color: #c4bdd8; }
         .gp-goal-input:focus { border-color: #7c5cdb; box-shadow: 0 0 0 3px rgba(92,63,207,0.09); }
 
+        .gp-mic-btn {
+          background: #f0eaff; border: 1px solid #d4c4f9; border-radius: 50%; width: 34px; height: 34px;
+          display: flex; align-items: center; justify-content: center; cursor: pointer; color: #5b3fcf;
+          flex-shrink: 0; transition: all 0.2s;
+        }
+        .gp-mic-btn:hover { background: #e3d6fc; }
+        .gp-mic-btn.recording {
+          background: #ffeaec; border-color: #fca5a5; color: #ef4444; animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+          70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
         .gp-timeline-wrap {
           display: flex; align-items: center; gap: 6px; flex-shrink: 0;
         }
@@ -259,7 +269,6 @@ export default function GoalPage() {
         }
         .gp-add-btn:hover { background: #f7f4ff; color: #4f35b8; }
 
-        /* ---- INFO BANNER ---- */
         .gp-info {
           display: flex; align-items: flex-start; gap: 11px;
           background: #f0ecff; border-radius: 14px; padding: 14px 16px;
@@ -269,7 +278,6 @@ export default function GoalPage() {
         .gp-info-icon { color: #7c5cdb; flex-shrink: 0; margin-top: 1px; }
         .gp-info-text { font-size: 13.5px; color: #5a4a8a; line-height: 1.6; font-weight: 300; }
 
-        /* ---- CTA ---- */
         .gp-btn {
           width: 100%; padding: 17px 24px;
           background: #4f35b8; color: #fff;
@@ -301,101 +309,87 @@ export default function GoalPage() {
       <div className="gp-root">
         <div className="gp-blob gp-blob-1" />
         <div className="gp-blob gp-blob-2" />
-        <button className="gp-skip" onClick={() => router.push("/questions")}>Skip</button>
+        <button className="gp-skip" onClick={() => router.push("/questions")}>{t.skip}</button>
 
         <div className="gp-inner">
           <h1 className="gp-heading">
-            Set your<br /><em>goals</em>
+            {t.heading1}<br /><em>{t.heading2}</em>
           </h1>
           <p className="gp-sub">
-            Choose the areas you want to focus on<br />and add your goals with timelines.
+            {t.sub1}<br />{t.sub2}
           </p>
 
-          {/* DOMAIN SELECTOR */}
-          <p className="gp-section-label">Choose domains</p>
-          <div className="gp-domains">
-            {DOMAINS.map(({ key, label, icon }) => (
-              <button
-                key={key}
-                className={`gp-domain-btn${domains[key] ? " active" : ""}`}
-                onClick={() => toggleDomain(key)}
-              >
-                <span className="gp-domain-icon">{icon}</span>
-                <span className="gp-domain-name">{label}</span>
-                <span className="gp-check">
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M2 6l3 3 5-5"/>
-                  </svg>
-                </span>
-              </button>
-            ))}
-          </div>
+          <div className="gp-goal-section">
+            <div className="gp-goal-header">
+              <span className="gp-goal-header-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6.5 6.5h11M6.5 17.5h11M3 10h18M3 14h18"/>
+                  <rect x="1" y="8" width="3" height="8" rx="1.5"/><rect x="20" y="8" width="3" height="8" rx="1.5"/>
+                </svg>
+              </span>
+              <span className="gp-goal-header-text">{t.fitness}</span>
+            </div>
 
-          {/* GOAL SECTIONS */}
-          {DOMAINS.map(({ key, label, icon, placeholder }) =>
-            domains[key] ? (
-              <div className="gp-goal-section" key={key}>
-                <div className="gp-goal-header">
-                  <span className="gp-goal-header-icon">{icon}</span>
-                  <span className="gp-goal-header-text">{label} goals</span>
-                </div>
-
-                <div className="gp-goal-list">
-                  {goals[key].map((g, i) => (
-                    <div className="gp-goal-row" key={i}>
-                      <span className="gp-drag-handle">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                          <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
-                          <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
-                          <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
-                        </svg>
-                      </span>
-
-                      <input
-                        className="gp-goal-input"
-                        placeholder={placeholder}
-                        value={g.text}
-                        onChange={e => handleChange(key, i, "text", e.target.value)}
-                      />
-
-                      <div className="gp-timeline-wrap">
-                        <input
-  type="number"
-  min="1"
-  className="gp-timeline-input"
-  value={g.timeline}
-  onChange={e =>
-    handleChange(key, i, "timeline", Number(e.target.value))
-  }
-/>
-                        <span className="gp-days-label">days</span>
-                      </div>
-
-                      <button
-                        className="gp-remove-btn"
-                        onClick={() => removeGoal(key, i)}
-                        disabled={goals[key].length === 1}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                          <path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-
-                  <button className="gp-add-btn" onClick={() => addGoal(key)}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <path d="M12 5v14M5 12h14"/>
+            <div className="gp-goal-list">
+              {goals.map((g, i) => (
+                <div className="gp-goal-row" key={i}>
+                  <span className="gp-drag-handle">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+                      <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                      <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
                     </svg>
-                    Add another goal
+                  </span>
+
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flex: 1 }}>
+                    <input
+                      className="gp-goal-input"
+                      placeholder={t.placeholder}
+                      value={g.text}
+                      onChange={e => handleChange(i, "text", e.target.value)}
+                    />
+                    <button 
+                      className={`gp-mic-btn ${recordingIndex === i ? 'recording' : ''}`}
+                      onClick={() => startListening(i)}
+                      title="Speak goal"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+                    </button>
+                  </div>
+
+                  <div className="gp-timeline-wrap">
+                    <input
+                      type="number"
+                      min="1"
+                      className="gp-timeline-input"
+                      value={g.timeline}
+                      onChange={e => handleChange(i, "timeline", Number(e.target.value))}
+                    />
+                    <span className="gp-days-label">{t.days}</span>
+                  </div>
+
+                  <button
+                    className="gp-remove-btn"
+                    onClick={() => removeGoal(i)}
+                    disabled={goals.length === 1}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                      <path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                    </svg>
                   </button>
                 </div>
-              </div>
-            ) : null
-          )}
+              ))}
 
-          {/* INFO BANNER */}
+              <button className="gp-add-btn" onClick={addGoal}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M12 5v14M5 12h14"/>
+                </svg>
+                {t.add}
+              </button>
+            </div>
+          </div>
+
           <div className="gp-info">
             <span className="gp-info-icon">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -403,17 +397,16 @@ export default function GoalPage() {
               </svg>
             </span>
             <p className="gp-info-text">
-              You can add multiple goals in each domain. We'll create a personalised plan for each of them.
+              {t.info}
             </p>
           </div>
 
-          {/* CTA */}
           <button className="gp-btn" onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <div className="gp-spinner" />
             ) : (
               <>
-                Continue
+                {t.continue}
                 <span className="gp-btn-arrow">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 12h14M12 5l7 7-7 7"/>

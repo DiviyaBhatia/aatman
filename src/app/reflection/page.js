@@ -5,19 +5,90 @@ import { post } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 
+const dict = {
+  English: {
+    heading1: "Reflect on your", heading2: "day",
+    placeholder: "Type or speak your thoughts...",
+    submit: "Submit",
+    loading: "Loading reflection...",
+    submitting: "Submitting..."
+  },
+  Hindi: {
+    heading1: "अपने", heading2: "दिन पर विचार करें",
+    placeholder: "अपने विचार टाइप करें या बोलें...",
+    submit: "जमा करें",
+    loading: "लोड हो रहा है...",
+    submitting: "जमा किया जा रहा है..."
+  },
+  Marathi: {
+    heading1: "तुमच्या", heading2: "दिवसावर विचार करा",
+    placeholder: "तुमचे विचार टाइप करा किंवा बोला...",
+    submit: "सबमिट करा",
+    loading: "लोड होत आहे...",
+    submitting: "सबमिट होत आहे..."
+  }
+};
+
 function ReflectionInner() {
   const router = useRouter();
-const searchParams = useSearchParams();
-const [goalId, setGoalId] = useState(null);
+  const searchParams = useSearchParams();
+  const [goalId, setGoalId] = useState(null);
 
-useEffect(() => {
-  const raw = searchParams.get("goalId");
-  if (raw) setGoalId(Number(raw));
-}, [searchParams]);
+  useEffect(() => {
+    const raw = searchParams.get("goalId");
+    if (raw) setGoalId(Number(raw));
+  }, [searchParams]);
+
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [recordingIndex, setRecordingIndex] = useState(null);
+  const [lang, setLang] = useState("English");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedLang = localStorage.getItem("preferred_language");
+      if (savedLang) setLang(savedLang);
+    }
+  }, []);
+
+  const t = dict[lang] || dict.English;
+
+  const startListening = (index) => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert("Voice input is not supported in your browser.");
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    const langCode = lang === "Hindi" ? "hi-IN" : lang === "Marathi" ? "mr-IN" : "en-IN";
+    recognition.lang = langCode;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setRecordingIndex(index);
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      handleChange(index, (answers[index] ? answers[index] + " " : "") + transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error", event.error);
+      setRecordingIndex(null);
+    };
+
+    recognition.onend = () => {
+      setRecordingIndex(null);
+    };
+
+    recognition.start();
+  };
+
 
  useEffect(() => {
   if (!goalId) return;
@@ -79,7 +150,7 @@ await post("/evaluate-day", {
 };
 
   if (loading) {
-    return <div>Loading reflection...</div>;
+    return <div>{t.loading}</div>;
   }
 
   if (!goalId) {
@@ -111,6 +182,42 @@ await post("/evaluate-day", {
         .rf-btn:active:not(:disabled) { transform: translateY(0); }
         .rf-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+
+        .rf-input-wrap {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .rf-mic-btn {
+          background: #f0eaff;
+          border: 1px solid #d4c4f9;
+          border-radius: 50%;
+          width: 44px;
+          height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: #5b3fcf;
+          flex-shrink: 0;
+          transition: all 0.2s;
+        }
+        .rf-mic-btn:hover { background: #e3d6fc; }
+        .rf-mic-btn.recording {
+          background: #ffeaec;
+          border-color: #fca5a5;
+          color: #ef4444;
+          animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+          70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .rf-lang-select {
+          display: none;
+        }
       `}</style>
       
       <div className="rf-root">
@@ -118,18 +225,31 @@ await post("/evaluate-day", {
         <div className="rf-blob rf-blob-2" />
 
         <div className="rf-inner">
-          <h1 className="rf-heading">Reflect on your <em>day</em></h1>
+          <h1 className="rf-heading">{t.heading1} <em>{t.heading2}</em></h1>
 
           <div className="rf-card">
             {questions.map((q, i) => (
               <div className="rf-q-block" key={i}>
                 <p className="rf-q-text">{q}</p>
-                <input
-                  className="rf-input"
-                  value={answers[i] || ""}
-                  onChange={e => handleChange(i, e.target.value)}
-                  placeholder="Type your thoughts..."
-                />
+                <div className="rf-input-wrap">
+                  <input
+                    className="rf-input"
+                    value={answers[i] || ""}
+                    onChange={e => handleChange(i, e.target.value)}
+                    placeholder={t.placeholder}
+                  />
+                  <button 
+                    className={`rf-mic-btn ${recordingIndex === i ? 'recording' : ''}`}
+                    onClick={() => startListening(i)}
+                    title="Speak answer"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                      <line x1="12" y1="19" x2="12" y2="22"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -138,7 +258,7 @@ await post("/evaluate-day", {
         <div className="rf-footer">
           <div className="rf-footer-inner">
             <button className="rf-btn" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Submitting..." : "Submit"}
+              {submitting ? t.submitting : t.submit}
               <span style={{ width: 22, height: 22, background: 'rgba(255,255,255,0.18)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </span>
